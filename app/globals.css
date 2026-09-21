@@ -1,0 +1,112 @@
+@import 'tailwindcss';
+
+/*
+ * Colour and type — measured for screen-share contrast (WCAG AA).
+ * Matches the MARS console language so leadership demos feel like one family.
+ */
+@theme {
+  --color-ink: #0b1018;
+  --color-panel: #111725;
+  --color-raised: #172033;
+  --color-code: #0b1018;
+
+  --color-edge: #2a3450;
+  --color-edge-hi: #3c4a6b;
+
+  --color-primary: #eef3fa;
+  --color-secondary: #c3d0e3;
+  --color-muted: #95a4bd;
+  --color-subtle: #7f8fa9;
+
+  --color-blue: #8ab4ff;
+  --color-green: #6ee7a0;
+  --color-red: #ff9e95;
+  --color-amber: #f5cd7a;
+  --color-violet: #c9a8ff;
+  --color-do-blue: #0069ff;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+}
+
+html,
+body {
+  background: var(--color-ink);
+  color: var(--color-primary);
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: var(--text-base);
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+  line-height: 1.65;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-edge-hi);
+  border-radius: 5px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #4a5a7e;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+.live-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.feed-item {
+  animation: slide-in 0.18s ease-out;
+}
+
+@keyframes sweep {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+.hero-glow {
+  background: radial-gradient(1200px 420px at 12% -10%, rgba(0, 105, 255, 0.22), transparent 60%),
+    radial-gradient(900px 380px at 88% 0%, rgba(110, 231, 160, 0.08), transparent 55%);
+}

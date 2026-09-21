@@ -1,0 +1,37 @@
+# Triage agent — Harness Runtime environment template (demo manifest)
+name: ops-incident-triage
+harness: opencode
+mode: fresh
+model:
+  provider: digitalocean
+  base_url: https://inference.do-ai.run/v1
+  model: ${INFERENCE_MODEL}
+  env_key: DO_API_KEY
+
+session:
+  isolation: firecracker
+  resume_target_ms: 200
+
+guardrails:
+  network:
+    egress:
+      - inference.do-ai.run
+      - api.digitalocean.com
+      - github.com
+  shell:
+    - command: "rm -rf*"
+      action: deny
+    - command: "mkfs*"
+      action: deny
+    - command: "shutdown*"
+      action: deny
+  writes:
+    - target: production
+      action: require_approval
+
+skills:
+  - incident-triage
+
+callback:
+  url: "${CONSOLE_URL}/api/agent/callback"
+  host: "${CONSOLE_HOST}"

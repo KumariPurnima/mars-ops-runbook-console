@@ -1,0 +1,40 @@
+# Runbook agent — continues the same durable Harness session
+name: ops-incident-runbook
+harness: opencode
+mode: resume
+model:
+  provider: digitalocean
+  base_url: https://inference.do-ai.run/v1
+  model: ${INFERENCE_MODEL}
+  env_key: DO_API_KEY
+
+session:
+  isolation: firecracker
+  resume_target_ms: 200
+
+guardrails:
+  network:
+    egress:
+      - inference.do-ai.run
+      - api.digitalocean.com
+      - github.com
+      - hooks.slack.com
+  shell:
+    - command: "rm -rf*"
+      action: deny
+    - command: "kubectl delete*"
+      action: require_approval
+    - command: "doctl apps delete*"
+      action: deny
+  writes:
+    - target: production
+      action: require_approval
+    - target: secrets
+      action: deny
+
+skills:
+  - incident-runbook
+
+callback:
+  url: "${CONSOLE_URL}/api/agent/callback"
+  host: "${CONSOLE_HOST}"
