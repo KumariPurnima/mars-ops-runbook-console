@@ -11,9 +11,8 @@ provision, no model servers to run. A human still owns every production change.
 | **Owner** | @KumariPurnima |
 | **Status** | Working — simulated + offline replay always; **live MARS** when triggers are configured via `scripts/setup-mars.sh` |
 | **Last validated** | 2026-09-21 |
-| **Live demo** | Run locally or deploy with `.do/app.yaml` |
+| **Live demo** | https://mars-ops-runbook-console-xneb7.ondigitalocean.app |
 | **Products shown** | Harness Runtime (MARS), Gradient Serverless Inference, Action Gateway (approvals), App Platform |
-| **Companion demo** | [mars-ticket-to-pr-console](https://github.com/DO-Solutions/mars-ticket-to-pr-console) (engineering intake) |
 
 ## Executive summary
 
@@ -43,14 +42,17 @@ the alternative DigitalOcean is building for customers:
 
 ## Architecture
 
-![Architecture](docs/architecture.svg)
+![Ops Runbook Agent architecture](docs/architecture.svg)
 
-Two agents share one conceptual harness session:
-
-| Agent | Job |
+| Stage | What happens |
 |---|---|
-| **Triage** | Correlate pager + metrics + logs + deploys → working diagnosis |
-| **Runbook** | Produce gated steps, status note, postmortem skeleton |
+| **Signal** | Pager / alert lands on the incident board (PagerDuty stand-in) |
+| **Console** | App Platform app dispatches a signed MARS webhook (`lib/mars.ts`) and streams session events (`lib/consume.ts`) |
+| **Triage agent** | Fresh Harness Runtime sandbox correlates metrics, logs, deploys → working diagnosis |
+| **Runbook agent** | Chained fresh sandbox drafts gated mitigations, status note, postmortem |
+| **Inference** | Both agents call Gradient Serverless Inference (`inference.do-ai.run`) — no GPUs to provision |
+| **Governance** | Action Gateway / deny rules hold destructive and production writes for humans |
+| **Outcome** | Agents callback to `/api/agent/callback`; the Outcome panel shows diagnosis + runbook |
 
 ## Repository layout
 
@@ -139,7 +141,7 @@ availability.
 |---|---|
 | **CEO** | “First ten minutes of an incident, automated — humans start at decide, not dig.” |
 | **CPTO** | “Harness Runtime is the durable isolated session; Serverless Inference is the model layer with no GPU ops.” |
-| **CRO** | “Same platform story as ticket-to-PR: agents that ship work with guardrails customers will buy.” |
+| **CRO** | “Agents that ship real ops work with guardrails customers will buy — faster MTTR, clearer ownership.” |
 
 ## Environment variables
 
@@ -152,16 +154,6 @@ availability.
 | `MARS_RUNBOOK_TRIGGER_ID` / `_SECRET` | Runbook webhook trigger from `setup-mars.sh` |
 | `INFERENCE_MODEL` | Model id (default `openai-gpt-4.1`; harness specs use `deepseek-v4-pro`) |
 | `FORCE_REPLAY` | Set `1` to skip live inference enrichment |
-
-## Relationship to ticket-to-PR
-
-| Demo | Intake | Outcome |
-|---|---|---|
-| [mars-ticket-to-pr-console](https://github.com/DO-Solutions/mars-ticket-to-pr-console) | Jira / board ticket | Reviewed pull request |
-| **mars-ops-runbook-console** (this repo) | Pager / incident | Gated runbook + postmortem |
-
-Together they bookend the customer story: **build faster** and **recover faster**
-on DigitalOcean’s agentic cloud.
 
 ## How MARS is used
 
@@ -179,7 +171,7 @@ demos never depend on preview access or conference Wi‑Fi.
 ## Known limitations
 
 **`doctl harness-runtime` is beta.** Release `doctl` (e.g. 1.169) does not ship
-the command yet — use the same beta build as ticket-to-PR.
+the command yet — use a `1.168.0-beta` build that includes Managed Agents.
 
 **In-memory board.** Process restart clears runs. Use **reset demo** before every
 showing.
