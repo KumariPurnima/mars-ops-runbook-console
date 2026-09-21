@@ -14,7 +14,8 @@ export type ChatResult = {
 const BASE = 'https://inference.do-ai.run/v1';
 
 export function inferenceConfigured(): boolean {
-  return Boolean(process.env.DO_API_KEY) && process.env.FORCE_REPLAY !== '1';
+  const key = process.env.DO_API_KEY;
+  return Boolean(key) && key !== 'REPLACE_ME' && process.env.FORCE_REPLAY !== '1';
 }
 
 export async function chatCompletions(
