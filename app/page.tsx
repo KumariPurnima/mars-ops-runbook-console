@@ -129,9 +129,18 @@ export default function Page() {
         <header className="hero-band hero-rise rounded-2xl px-5 py-5 mb-5 relative z-[1]">
           <div className="relative z-[1] flex flex-wrap items-start gap-4">
             <div className="min-w-[280px] flex-1">
-              <p className="mono text-xs text-cyan tracking-[0.14em] uppercase mb-2">
-                DigitalOcean · Gradient AI · MARS
-              </p>
+              <div className="brand-chip mb-3">
+                <img
+                  src="/brand/digitalocean-mark.png"
+                  alt="DigitalOcean"
+                  width={28}
+                  height={28}
+                  className="h-7 w-7 object-contain"
+                />
+                <span className="text-sm font-semibold text-primary tracking-tight">DigitalOcean</span>
+                <span className="mono text-[11px] text-cyan">Gradient AI · MARS</span>
+              </div>
+
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="font-display text-2xl md:text-[1.85rem] font-semibold text-primary tracking-tight">
                   Ops Runbook Agent
@@ -159,10 +168,23 @@ export default function Page() {
                 agents on DigitalOcean Harness Runtime and Serverless Inference.
               </p>
               <p className="credit-line text-sm text-muted pt-3">
-                Architecture designed by{' '}
+                Architected by{' '}
                 <span className="text-primary font-medium">Purnima Kumari</span>
-                <span className="text-subtle"> · Sr. Solution Architect II</span>
+                <span className="text-subtle">, Sr. Solution Architect II · DigitalOcean Shark</span>
               </p>
+            </div>
+
+            <div className="hidden md:flex items-end justify-center self-stretch px-2">
+              <div className="sammy-sway" title="Sammy the Shark">
+                <img
+                  src="/brand/sammy.png"
+                  alt="Sammy the Shark"
+                  width={120}
+                  height={108}
+                  className="sammy-float h-[108px] w-auto drop-shadow-[0_12px_24px_rgba(0,128,255,0.25)] select-none"
+                  draggable={false}
+                />
+              </div>
             </div>
 
             <div className="flex flex-col items-stretch sm:items-end gap-3 ml-auto">
@@ -219,6 +241,18 @@ export default function Page() {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Mobile Sammy — gentle float under actions */}
+          <div className="md:hidden relative z-[1] flex justify-center pt-3">
+            <img
+              src="/brand/sammy.png"
+              alt="Sammy the Shark"
+              width={88}
+              height={80}
+              className="sammy-float h-20 w-auto select-none"
+              draggable={false}
+            />
           </div>
         </header>
 
@@ -298,7 +332,7 @@ export default function Page() {
             powers reasoning with no GPU fleet. Humans still own production changes.
           </p>
           <p className="credit-line text-muted">
-            Architecture designed by Purnima Kumari (Sr. Solution Architect II)
+            Architected by Purnima Kumari, Sr. Solution Architect II · DigitalOcean Shark
           </p>
         </footer>
       </div>

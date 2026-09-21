@@ -172,3 +172,42 @@ body {
 .credit-line {
   letter-spacing: 0.02em;
 }
+
+@keyframes sammy-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
+
+@keyframes sammy-sway {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+}
+
+.sammy-float {
+  animation: sammy-float 3.6s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.sammy-sway {
+  animation: sammy-sway 5.5s ease-in-out infinite;
+}
+
+.brand-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.75rem 0.35rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-do-blue) 35%, var(--color-edge));
+  background: rgba(0, 128, 255, 0.1);
+}
