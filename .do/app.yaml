@@ -1,10 +1,4 @@
 # App Platform spec for the MARS Ops Runbook console.
-#
-# Deploy with:
-#   doctl apps create --spec .do/app.yaml
-# then set SECRET values in the control panel.
-#
-# NYC is deliberate: MARS sandboxes and Insights metrics are NYC3-oriented today.
 name: mars-ops-runbook-console
 region: nyc
 
@@ -14,10 +8,9 @@ services:
     instance_size_slug: basic-xxs
     http_port: 8080
 
-    github:
-      repo: KumariPurnima/mars-ops-runbook-console
+    git:
+      repo_clone_url: https://github.com/KumariPurnima/mars-ops-runbook-console.git
       branch: main
-      deploy_on_push: true
 
     build_command: npm ci && npm run build
     run_command: npm start
@@ -63,5 +56,5 @@ services:
 
     health_check:
       http_path: /api/incidents
-      initial_delay_seconds: 20
+      initial_delay_seconds: 30
       period_seconds: 15
