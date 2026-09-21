@@ -124,84 +124,101 @@ export default function Page() {
   const canDispatch = incident && !busy && !resetting && !running;
 
   return (
-    <main className="min-h-screen hero-glow">
+    <main className="min-h-screen hero-shell">
       <div className="p-5 max-w-[1800px] mx-auto">
-        <header className="flex flex-wrap items-center gap-4 pb-4">
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl font-semibold text-primary">Ops Runbook Agent</h1>
-              <span className="mono text-xs px-2 py-0.5 rounded border border-do-blue/40 bg-do-blue/10 text-blue">
-                Incident Copilot
-              </span>
-              <span
-                className={`mono text-xs px-2 py-0.5 rounded border ${
-                  status.mars
-                    ? 'border-green/40 bg-green/10 text-green'
-                    : 'border-amber/40 bg-amber/10 text-amber'
-                }`}
-                title={
-                  status.mars
-                    ? 'MARS triggers configured — dispatch fires Harness Runtime'
-                    : 'MARS not configured — dispatch uses simulated / replay path'
-                }
-              >
-                {status.mars ? 'MARS live' : 'simulated'}
-              </span>
+        <header className="hero-band hero-rise rounded-2xl px-5 py-5 mb-5 relative z-[1]">
+          <div className="relative z-[1] flex flex-wrap items-start gap-4">
+            <div className="min-w-[280px] flex-1">
+              <p className="mono text-xs text-cyan tracking-[0.14em] uppercase mb-2">
+                DigitalOcean · Gradient AI · MARS
+              </p>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="font-display text-2xl md:text-[1.85rem] font-semibold text-primary tracking-tight">
+                  Ops Runbook Agent
+                </h1>
+                <span className="mono text-xs px-2.5 py-1 rounded-full border border-cyan/35 bg-cyan/10 text-cyan">
+                  Incident Copilot
+                </span>
+                <span
+                  className={`mono text-xs px-2.5 py-1 rounded-full border ${
+                    status.mars
+                      ? 'border-green/40 bg-green/10 text-green'
+                      : 'border-amber/40 bg-amber/10 text-amber'
+                  }`}
+                  title={
+                    status.mars
+                      ? 'MARS triggers configured — dispatch fires Harness Runtime'
+                      : 'MARS not configured — dispatch uses simulated / replay path'
+                  }
+                >
+                  {status.mars ? 'MARS live' : 'simulated'}
+                </span>
+              </div>
+              <p className="text-base text-secondary pt-2 max-w-2xl leading-relaxed">
+                A pager alert becomes a diagnosis, gated runbook, and postmortem draft — worked by
+                agents on DigitalOcean Harness Runtime and Serverless Inference.
+              </p>
+              <p className="credit-line text-sm text-muted pt-3">
+                Architecture designed by{' '}
+                <span className="text-primary font-medium">Purnima Kumari</span>
+                <span className="text-subtle"> · Sr. Solution Architect II</span>
+              </p>
             </div>
-            <p className="text-sm text-muted pt-0.5 max-w-3xl">
-              A pager alert becomes a diagnosis, gated runbook, and postmortem draft — worked by
-              agents on DigitalOcean Harness Runtime and Serverless Inference
-            </p>
-          </div>
 
-          <nav className="flex items-center gap-1 ml-2" aria-label="Views">
-            {(
-              [
-                ['board', 'Incidents & runs'],
-                ['agents', 'Agents & guardrails'],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                onClick={() => setTab(id)}
-                aria-current={tab === id}
-                className={`text-base px-3 py-1.5 rounded transition ${
-                  tab === id
-                    ? 'bg-do-blue/20 text-primary font-medium'
-                    : 'text-muted hover:text-primary'
-                }`}
+            <div className="flex flex-col items-stretch sm:items-end gap-3 ml-auto">
+              <nav
+                className="flex items-center gap-1 p-1 rounded-xl border border-edge bg-ink/40"
+                aria-label="Views"
               >
-                {label}
-              </button>
-            ))}
-          </nav>
+                {(
+                  [
+                    ['board', 'Incidents & runs'],
+                    ['agents', 'Agents & guardrails'],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => setTab(id)}
+                    aria-current={tab === id}
+                    className={`text-sm px-3 py-1.5 rounded-lg transition ${
+                      tab === id
+                        ? 'bg-do-blue text-white font-medium shadow-[0_0_24px_rgba(0,128,255,0.25)]'
+                        : 'text-muted hover:text-primary'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </nav>
 
-          <div className="ml-auto flex items-center gap-2 flex-wrap">
-            <button
-              onClick={reset}
-              disabled={resetting}
-              title="Restore the five seeded incidents"
-              className="text-sm px-3 py-1.5 rounded border border-edge text-muted hover:text-primary hover:border-edge-hi transition disabled:opacity-50"
-            >
-              {resetting ? 'resetting…' : 'reset demo'}
-            </button>
-            <button
-              onClick={replay}
-              disabled={busy || resetting}
-              title="Replay the rehearsed SEV-1 canary incident offline"
-              className="text-sm px-3 py-1.5 rounded border border-edge text-muted hover:text-primary hover:border-edge-hi transition disabled:opacity-50"
-            >
-              replay (offline)
-            </button>
-            <button
-              onClick={dispatch}
-              disabled={!canDispatch}
-              className="text-base font-medium px-4 py-1.5 rounded bg-do-blue text-white hover:brightness-110 disabled:opacity-30 disabled:cursor-not-allowed transition"
-            >
-              {running
-                ? 'Agent working…'
-                : `Dispatch incident copilot${incident ? ` → ${incident.key}` : ''}`}
-            </button>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <button
+                  onClick={reset}
+                  disabled={resetting}
+                  title="Restore the five seeded incidents"
+                  className="text-sm px-3 py-1.5 rounded-lg border border-edge text-muted hover:text-primary hover:border-edge-hi transition disabled:opacity-50"
+                >
+                  {resetting ? 'resetting…' : 'reset demo'}
+                </button>
+                <button
+                  onClick={replay}
+                  disabled={busy || resetting}
+                  title="Replay the rehearsed SEV-1 canary incident offline"
+                  className="text-sm px-3 py-1.5 rounded-lg border border-edge text-muted hover:text-primary hover:border-edge-hi transition disabled:opacity-50"
+                >
+                  replay (offline)
+                </button>
+                <button
+                  onClick={dispatch}
+                  disabled={!canDispatch}
+                  className="text-base font-semibold px-4 py-2 rounded-lg bg-do-blue text-white hover:brightness-110 disabled:opacity-30 disabled:cursor-not-allowed transition shadow-[0_8px_28px_rgba(0,128,255,0.35)]"
+                >
+                  {running
+                    ? 'Agent working…'
+                    : `Dispatch incident copilot${incident ? ` → ${incident.key}` : ''}`}
+                </button>
+              </div>
+            </div>
           </div>
         </header>
 
@@ -237,9 +254,9 @@ export default function Page() {
             />
 
             {incident && (
-              <div className="mt-3 rounded-lg border border-edge bg-panel p-3.5">
+              <div className="mt-3 rounded-xl border border-edge bg-panel/90 p-3.5 backdrop-blur-sm">
                 <div className="flex flex-wrap items-start gap-2.5">
-                  <span className="mono text-base text-blue">{incident.key}</span>
+                  <span className="mono text-base text-cyan">{incident.key}</span>
                   <span className="mono text-sm text-amber">{incident.severity}</span>
                   <span className="text-lg text-primary font-medium">{incident.summary}</span>
                   <span className="ml-auto text-sm text-muted">
@@ -274,10 +291,15 @@ export default function Page() {
           </>
         )}
 
-        <footer className="pt-5 text-sm text-subtle text-center max-w-3xl mx-auto">
-          The board stands in for PagerDuty — in production this is Action Gateway&apos;s alerting
-          connector. Harness Runtime provides the durable isolated session; Serverless Inference
-          powers reasoning with no GPU fleet. Humans still own production changes.
+        <footer className="pt-6 pb-2 text-sm text-subtle text-center max-w-3xl mx-auto space-y-1.5">
+          <p>
+            The board stands in for PagerDuty — in production this is Action Gateway&apos;s alerting
+            connector. Harness Runtime provides the durable isolated session; Serverless Inference
+            powers reasoning with no GPU fleet. Humans still own production changes.
+          </p>
+          <p className="credit-line text-muted">
+            Architecture designed by Purnima Kumari (Sr. Solution Architect II)
+          </p>
         </footer>
       </div>
     </main>

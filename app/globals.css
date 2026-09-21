@@ -1,35 +1,37 @@
 @import 'tailwindcss';
 
 /*
- * Colour and type — measured for screen-share contrast (WCAG AA).
- * Matches the MARS console language so leadership demos feel like one family.
+ * Ocean ops palette — teal/cyan accents on deep navy for screen-share contrast.
  */
 @theme {
-  --color-ink: #0b1018;
-  --color-panel: #111725;
-  --color-raised: #172033;
-  --color-code: #0b1018;
+  --color-ink: #061018;
+  --color-panel: #0b1a24;
+  --color-raised: #102532;
+  --color-code: #050e16;
 
-  --color-edge: #2a3450;
-  --color-edge-hi: #3c4a6b;
+  --color-edge: #1c3a4a;
+  --color-edge-hi: #2a5568;
 
-  --color-primary: #eef3fa;
-  --color-secondary: #c3d0e3;
-  --color-muted: #95a4bd;
-  --color-subtle: #7f8fa9;
+  --color-primary: #f0f7fb;
+  --color-secondary: #c5d9e4;
+  --color-muted: #8fb0c2;
+  --color-subtle: #6d8fa3;
 
-  --color-blue: #8ab4ff;
-  --color-green: #6ee7a0;
-  --color-red: #ff9e95;
-  --color-amber: #f5cd7a;
-  --color-violet: #c9a8ff;
-  --color-do-blue: #0069ff;
+  --color-blue: #5ec8ff;
+  --color-green: #3ee0a4;
+  --color-red: #ff8f85;
+  --color-amber: #ffc857;
+  --color-violet: #7dd3c0;
+  --color-do-blue: #0080ff;
+  --color-cyan: #2dd4c8;
+  --color-sea: #0ea5a0;
 
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
   --text-base: 0.9375rem;
   --text-lg: 1.125rem;
   --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
 }
 
 html,
@@ -39,19 +41,23 @@ body {
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-body), 'Segoe UI', sans-serif;
   font-size: var(--text-base);
   -webkit-font-smoothing: antialiased;
 }
 
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+}
+
 .mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono), ui-monospace, Menlo, Consolas, monospace;
   font-size: var(--text-sm);
   line-height: 1.65;
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-blue);
+  outline: 2px solid var(--color-cyan);
   outline-offset: 2px;
   border-radius: 3px;
 }
@@ -68,7 +74,7 @@ body {
   border-radius: 5px;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #4a5a7e;
+  background: #3a6a80;
 }
 
 @keyframes pulse-dot {
@@ -98,15 +104,71 @@ body {
   animation: slide-in 0.18s ease-out;
 }
 
-@keyframes sweep {
+@keyframes rise-in {
   from {
-    background-position: 0% 50%;
+    opacity: 0;
+    transform: translateY(10px);
   }
   to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hero-rise {
+  animation: rise-in 0.55s ease-out both;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
     background-position: 100% 50%;
   }
 }
-.hero-glow {
-  background: radial-gradient(1200px 420px at 12% -10%, rgba(0, 105, 255, 0.22), transparent 60%),
-    radial-gradient(900px 380px at 88% 0%, rgba(110, 231, 160, 0.08), transparent 55%);
+
+.hero-shell {
+  background:
+    radial-gradient(900px 380px at 8% -20%, rgba(45, 212, 200, 0.18), transparent 55%),
+    radial-gradient(700px 320px at 92% 0%, rgba(0, 128, 255, 0.2), transparent 50%),
+    radial-gradient(600px 280px at 50% 100%, rgba(62, 224, 164, 0.06), transparent 45%),
+    linear-gradient(180deg, #071520 0%, #061018 55%, #061018 100%);
+}
+
+.hero-band {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 28%, var(--color-edge));
+  background:
+    linear-gradient(135deg, rgba(16, 37, 50, 0.95) 0%, rgba(11, 26, 36, 0.92) 50%, rgba(7, 21, 32, 0.98) 100%);
+  box-shadow:
+    0 0 0 1px rgba(45, 212, 200, 0.06) inset,
+    0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.hero-band::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(105deg, transparent 40%, rgba(45, 212, 200, 0.07) 50%, transparent 60%);
+  background-size: 200% 100%;
+  animation: shimmer 8s linear infinite;
+  pointer-events: none;
+}
+
+.hero-band::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -8%;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 128, 255, 0.22), transparent 68%);
+  pointer-events: none;
+}
+
+.credit-line {
+  letter-spacing: 0.02em;
 }
