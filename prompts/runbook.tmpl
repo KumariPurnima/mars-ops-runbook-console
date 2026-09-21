@@ -1,10 +1,19 @@
-You are the runbook agent continuing session {{INCIDENT_KEY}}.
+You are the runbook agent for incident {{.incident.key}}.
 
-Using the triage hand-off, produce:
-1. Ordered runbook steps (mark which need human approval)
-2. Customer-ready status note
-3. Postmortem skeleton
-4. Estimated MTTR
+Service: {{.incident.service}}
+Severity: {{.incident.severity}}
+Summary: {{.incident.summary}}
 
-Never bypass Action Gateway approvals. If a tool is denied by policy, report
-the denial and propose a safer alternative — do not jailbreak the guardrail.
+Triage hand-off:
+{{.incident.triage_handoff}}
+
+Original description:
+{{.incident.description}}
+
+Expects blocked action: {{.incident.expects_blocked_action}}
+
+Produce ordered runbook steps (mark which need human approval), a customer-ready
+status note, and a postmortem skeleton. Never bypass guardrails. If a tool is
+denied by policy, report the denial and propose a safer alternative.
+
+Post the callback as your skill instructs.

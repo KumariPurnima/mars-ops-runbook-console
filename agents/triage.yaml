@@ -1,37 +1,90 @@
-# Triage agent — Harness Runtime environment template (demo manifest)
+# Triage agent — Harness Runtime environment template (fresh webhook trigger).
+#
+# Create with:
+#   doctl harness-runtime triggers create --kind webhook --name ops-incident-triage \
+#     --session-mode fresh --spec agents/triage.yaml --provider custom \
+#     --prompt "$(cat prompts/triage.tmpl)" --output-mode none \
+#     --secret HARNESS_INFERENCE_API_KEY=@~/.secrets/do-inference.key \
+#     --secret CONSOLE_TOKEN=@~/.secrets/console-callback
 name: ops-incident-triage
-harness: opencode
-mode: fresh
-model:
-  provider: digitalocean
-  base_url: https://inference.do-ai.run/v1
-  model: ${INFERENCE_MODEL}
-  env_key: DO_API_KEY
+agent: opencode
+size: mv-2vcpu-4gb
+persistent_workspace: false
 
-session:
-  isolation: firecracker
-  resume_target_ms: 200
+env:
+  HARNESS_INFERENCE_BASE_URL: "https://inference.do-ai.run/v1"
+  HARNESS_INFERENCE_MODEL: deepseek-v4-pro
+  CONSOLE_URL: "${CONSOLE_URL}"
 
-guardrails:
-  network:
-    egress:
-      - inference.do-ai.run
-      - api.digitalocean.com
-      - github.com
-  shell:
-    - command: "rm -rf*"
-      action: deny
-    - command: "mkfs*"
-      action: deny
-    - command: "shutdown*"
-      action: deny
-  writes:
-    - target: production
-      action: require_approval
+secrets:
+  HARNESS_INFERENCE_API_KEY: "placeholder-injected-at-create-time"
+  CONSOLE_TOKEN: "placeholder-injected-at-create-time"
+
+permissions:
+  default: allow
+  rules:
+    - { tool: bash, match: { command: "rm -rf *" }, action: deny }
+    - { tool: bash, match: { command: "mkfs*" }, action: deny }
+    - { tool: bash, match: { command: "shutdown*" }, action: deny }
+    - { tool: bash, match: { command: "kubectl delete*" }, action: deny }
+    - { tool: bash, match: { command: "doctl apps delete*" }, action: deny }
+
+egress:
+  allow_hosts:
+    - inference.do-ai.run
+    - api.digitalocean.com
+    - "${CONSOLE_HOST}"
 
 skills:
-  - incident-triage
+  - name: incident-triage
+    description: Correlate pager, metrics, logs, and deploys into a working diagnosis for an ops incident.
+    license: Apache-2.0
+    metadata: { author: DO-Solutions }
+    allowed_tools: [bash, file.read, file.write]
+    instructions: |
+      # Incident triage
 
-callback:
-  url: "${CONSOLE_URL}/api/agent/callback"
-  host: "${CONSOLE_HOST}"
+      You are the triage agent for a production incident. Work inside this
+      Harness Runtime sandbox. Use Serverless Inference for reasoning synthesis
+      only — never as a substitute for evidence.
+
+      ## Steps
+      1. Restate the incident key, service, and severity from the prompt.
+      2. Inspect whatever evidence is available in `/workspace` (fixtures, notes).
+         If nothing is mounted, reason from the incident description and say so.
+      3. Form a working diagnosis with an explicit confidence (0–1).
+      4. Do **not** mutate production. Destructive shell is denied by policy.
+      5. Report back to the console (see below).
+
+      ## Report back
+      Write a short hand-off, then POST it:
+
+          cat > /tmp/summary.txt <<'TXT'
+          <2–4 sentences: diagnosis, confidence, evidence, what the runbook agent should do next>
+          TXT
+
+          python3 -c "
+          import json,sys
+          print(json.dumps({
+            'incident': sys.argv[1],
+            'author': 'triage',
+            'status': 'diagnosis_ready',
+            'body': open('/tmp/summary.txt').read().strip(),
+            'outcome': {
+              'diagnosis': open('/tmp/summary.txt').read().strip(),
+              'confidence': 0.75,
+              'rootCause': 'see diagnosis',
+              'blastRadius': sys.argv[2],
+              'estimatedMttrMinutes': 25,
+              'postmortemDraft': '## Draft\nPending runbook agent.',
+              'runbookSteps': []
+            }
+          }))" "{{.incident.key}}" "{{.incident.service}}" > /tmp/callback.json
+
+          curl -sS -X POST "$CONSOLE_URL/api/agent/callback" \
+            -H "Authorization: Bearer $CONSOLE_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/callback.json
+
+      Expect `{"ok":true}`. If a guardrail blocks an action, say so plainly in
+      the callback — do not work around it.

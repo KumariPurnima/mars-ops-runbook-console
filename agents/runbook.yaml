@@ -1,40 +1,94 @@
-# Runbook agent — continues the same durable Harness session
+# Runbook agent — fired after triage completes (fresh webhook trigger).
+#
+# Create with:
+#   doctl harness-runtime triggers create --kind webhook --name ops-incident-runbook \
+#     --session-mode fresh --spec agents/runbook.yaml --provider custom \
+#     --prompt "$(cat prompts/runbook.tmpl)" --output-mode none \
+#     --secret HARNESS_INFERENCE_API_KEY=@~/.secrets/do-inference.key \
+#     --secret CONSOLE_TOKEN=@~/.secrets/console-callback
 name: ops-incident-runbook
-harness: opencode
-mode: resume
-model:
-  provider: digitalocean
-  base_url: https://inference.do-ai.run/v1
-  model: ${INFERENCE_MODEL}
-  env_key: DO_API_KEY
+agent: opencode
+size: mv-2vcpu-4gb
+persistent_workspace: false
 
-session:
-  isolation: firecracker
-  resume_target_ms: 200
+env:
+  HARNESS_INFERENCE_BASE_URL: "https://inference.do-ai.run/v1"
+  HARNESS_INFERENCE_MODEL: deepseek-v4-pro
+  CONSOLE_URL: "${CONSOLE_URL}"
 
-guardrails:
-  network:
-    egress:
-      - inference.do-ai.run
-      - api.digitalocean.com
-      - github.com
-      - hooks.slack.com
-  shell:
-    - command: "rm -rf*"
-      action: deny
-    - command: "kubectl delete*"
-      action: require_approval
-    - command: "doctl apps delete*"
-      action: deny
-  writes:
-    - target: production
-      action: require_approval
-    - target: secrets
-      action: deny
+secrets:
+  HARNESS_INFERENCE_API_KEY: "placeholder-injected-at-create-time"
+  CONSOLE_TOKEN: "placeholder-injected-at-create-time"
+
+permissions:
+  default: allow
+  rules:
+    - { tool: bash, match: { command: "rm -rf *" }, action: deny }
+    - { tool: bash, match: { command: "mkfs*" }, action: deny }
+    - { tool: bash, match: { command: "shutdown*" }, action: deny }
+    - { tool: bash, match: { command: "kubectl delete*" }, action: deny }
+    - { tool: bash, match: { command: "doctl apps delete*" }, action: deny }
+
+egress:
+  allow_hosts:
+    - inference.do-ai.run
+    - api.digitalocean.com
+    - hooks.slack.com
+    - "${CONSOLE_HOST}"
 
 skills:
-  - incident-runbook
+  - name: incident-runbook
+    description: Produce gated mitigations, a status note, and a postmortem skeleton from a triage hand-off.
+    license: Apache-2.0
+    metadata: { author: DO-Solutions }
+    allowed_tools: [bash, file.read, file.write]
+    instructions: |
+      # Incident runbook
 
-callback:
-  url: "${CONSOLE_URL}/api/agent/callback"
-  host: "${CONSOLE_HOST}"
+      Continue from the triage hand-off in the prompt. Produce an executable,
+      approval-gated runbook. Never mutate production yourself.
+
+      ## Rules
+      - Read / draft actions may run autonomously
+      - Writes (rollback, scale, secret changes, traffic shifts) are for humans
+      - Destructive filesystem commands are denied — propose safer alternatives
+      - Always draft a status note and postmortem skeleton
+
+      ## If asked to wipe files
+      If the incident asks for `rm -rf` or similar, attempt it once so the
+      deny rule is visible, then propose a non-destructive alternative.
+
+      ## Report back
+          cat > /tmp/summary.txt <<'TXT'
+          <runbook summary: steps, what needs approval, status note>
+          TXT
+
+          python3 -c "
+          import json,sys
+          print(json.dumps({
+            'incident': sys.argv[1],
+            'author': 'runbook',
+            'status': 'runbook_ready',
+            'body': open('/tmp/summary.txt').read().strip(),
+            'outcome': {
+              'diagnosis': 'see triage hand-off',
+              'confidence': 0.8,
+              'rootCause': 'see triage',
+              'blastRadius': sys.argv[2],
+              'estimatedMttrMinutes': 18,
+              'postmortemDraft': '## Incident ' + sys.argv[1] + '\n\n**Summary:** drafted by runbook agent\n',
+              'runbookSteps': [
+                {'id':'s1','title':'Freeze deploys','detail':'Pause CD','requiresApproval':False,'status':'done'},
+                {'id':'s2','title':'Capture evidence','detail':'Metrics + logs pack','requiresApproval':False,'status':'done'},
+                {'id':'s3','title':'Execute mitigation','detail':'Human-approved rollback / scale','requiresApproval':True,'status':'pending'},
+                {'id':'s4','title':'Status + postmortem','detail':'Draft ready','requiresApproval':False,'status':'done'}
+              ],
+              'tokensIn': 0,
+              'tokensOut': 0
+            }
+          }))" "{{.incident.key}}" "{{.incident.service}}" > /tmp/callback.json
+
+          curl -sS -X POST "$CONSOLE_URL/api/agent/callback" \
+            -H "Authorization: Bearer $CONSOLE_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/callback.json

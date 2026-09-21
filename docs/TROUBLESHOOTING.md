@@ -5,6 +5,12 @@
 1. Confirm `npm run dev` is healthy and `/api/incidents` returns five items.
 2. Click **reset demo**, then dispatch again.
 3. For leadership rooms with flaky Wi‑Fi, use **replay (offline)** — it always runs `INC-104`.
+4. Check `/api/status` — if `mars: true` and the feed is empty, the trigger may not be creating a session (check `DO_API_TOKEN` scopes and App Platform logs).
+
+## Header says "simulated" but I ran setup-mars.sh
+
+Confirm `MARS_TRIAGE_TRIGGER_ID`, `MARS_TRIAGE_TRIGGER_SECRET`, and `DO_API_TOKEN`
+are set (not `REPLACE_ME`) and the process was restarted after editing `.env.local`.
 
 ## Inference errors when `DO_API_KEY` is set
 

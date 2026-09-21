@@ -1,12 +1,16 @@
+import { consumeSession } from './consume';
 import { chatCompletions, inferenceConfigured } from './ai';
+import { fireTrigger, marsConfigured, waitForExecutionSession } from './mars';
 import type { Incident, IncidentOutcome } from './seed';
 import { buildScriptedRun } from './scenarios';
 import {
+  addIncidentNote,
   appendFeed,
   getIncident,
   getStore,
   setIncidentColumn,
   setIncidentOutcome,
+  updateRun,
   upsertRun,
   type FeedItem,
   type Run,
@@ -20,8 +24,9 @@ function newId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function feedOf(runId: string): FeedItem[] {
-  return getStore().runs.find((r) => r.id === runId)?.feed ?? [];
+function conf(name: string): string | undefined {
+  const v = process.env[name];
+  return !v || v === 'REPLACE_ME' ? undefined : v;
 }
 
 async function playItems(runId: string, items: FeedItem[], pace = true) {
@@ -128,33 +133,182 @@ async function enrichWithInference(
   }
 }
 
-export async function dispatchIncident(
-  key: string,
+function incidentPayload(incident: Incident, handoff?: string) {
+  return {
+    incident: {
+      key: incident.key,
+      severity: incident.severity,
+      service: incident.service,
+      summary: incident.summary,
+      description: incident.description,
+      reporter: incident.reporter,
+      expects_blocked_action: Boolean(incident.expectsBlockedAction),
+      triage_handoff: handoff ?? '',
+    },
+  };
+}
+
+async function attachMarsRun(opts: {
+  role: 'triage' | 'runbook';
+  incident: Incident;
+  triggerId: string;
+  secret: string;
+  payload: unknown;
+}): Promise<{ executionId: string }> {
+  const { executionId } = await fireTrigger(opts.triggerId, opts.secret, opts.payload);
+
+  const run: Run = {
+    id: executionId,
+    incident: opts.incident.key,
+    role: opts.role,
+    status: 'running',
+    startedAt: Date.now(),
+    feed: [],
+    mode: 'mars',
+    model: process.env.INFERENCE_MODEL ?? process.env.HARNESS_INFERENCE_MODEL ?? 'deepseek-v4-pro',
+    tokensIn: 0,
+    tokensOut: 0,
+  };
+  upsertRun(run);
+  opts.incident.runIds = [...opts.incident.runIds, executionId];
+
+  void (async () => {
+    const sessionId = await waitForExecutionSession(opts.triggerId, executionId);
+    if (!sessionId) {
+      console.error(`[mars ${executionId}] execution never reported a session`);
+      updateRun(executionId, { status: 'failed', error: 'the run never started a sandbox' });
+      return;
+    }
+    console.log(`[mars ${executionId}] sandbox ${sessionId}`);
+    updateRun(executionId, { harnessSessionId: sessionId });
+    await consumeSession(executionId, sessionId, { triggerId: opts.triggerId });
+  })();
+
+  return { executionId };
+}
+
+/**
+ * After triage completes on MARS, fire the runbook trigger.
+ * Polls the store so we do not block the HTTP handler.
+ */
+function chainRunbookAfterTriage(incidentKey: string, triageExecutionId: string) {
+  const runbookId = conf('MARS_RUNBOOK_TRIGGER_ID');
+  const runbookSecret = conf('MARS_RUNBOOK_TRIGGER_SECRET');
+  if (!runbookId || !runbookSecret) return;
+
+  void (async () => {
+    for (let i = 0; i < 180; i++) {
+      await sleep(2000);
+      const triage = getStore().runs.find((r) => r.id === triageExecutionId);
+      if (!triage) return;
+      if (triage.status === 'failed') return;
+      if (triage.status !== 'completed') continue;
+
+      const incident = getIncident(incidentKey);
+      if (!incident) return;
+
+      setIncidentColumn(incidentKey, 'mitigating');
+      addIncidentNote(incidentKey, {
+        author: 'system',
+        body: 'Triage complete — firing MARS runbook agent.',
+        at: Date.now(),
+      });
+
+      const handoff =
+        incident.notes.filter((n) => n.author === 'triage').at(-1)?.body ??
+        'See triage session feed for diagnosis.';
+
+      try {
+        const { executionId } = await attachMarsRun({
+          role: 'runbook',
+          incident,
+          triggerId: runbookId,
+          secret: runbookSecret,
+          payload: incidentPayload(incident, handoff),
+        });
+
+        // When runbook finishes, apply a fallback outcome if the agent did not callback.
+        void (async () => {
+          for (let j = 0; j < 180; j++) {
+            await sleep(2000);
+            const rb = getStore().runs.find((r) => r.id === executionId);
+            if (!rb) return;
+            if (rb.status === 'failed') return;
+            if (rb.status !== 'completed') continue;
+            if (!incident.outcome) {
+              setIncidentOutcome(incident.key, {
+                ...fallbackOutcome(incident),
+                tokensIn: rb.tokensIn ?? 0,
+                tokensOut: rb.tokensOut ?? 0,
+              });
+            }
+            if (!incident.expectsBlockedAction) setIncidentColumn(incident.key, 'resolved');
+            return;
+          }
+        })();
+      } catch (e) {
+        addIncidentNote(incidentKey, {
+          author: 'system',
+          body: `Runbook trigger failed: ${e instanceof Error ? e.message : String(e)}`,
+          at: Date.now(),
+        });
+      }
+      return;
+    }
+  })();
+}
+
+async function dispatchMars(
+  incident: Incident,
+): Promise<{ triageId: string; runbookId: string }> {
+  const triageIdEnv = conf('MARS_TRIAGE_TRIGGER_ID')!;
+  const triageSecret = conf('MARS_TRIAGE_TRIGGER_SECRET')!;
+
+  setIncidentColumn(incident.key, 'investigating');
+  addIncidentNote(incident.key, {
+    author: 'system',
+    body: 'Dispatched to MARS triage agent (Harness Runtime).',
+    at: Date.now(),
+  });
+
+  const { executionId } = await attachMarsRun({
+    role: 'triage',
+    incident,
+    triggerId: triageIdEnv,
+    secret: triageSecret,
+    payload: incidentPayload(incident),
+  });
+
+  chainRunbookAfterTriage(incident.key, executionId);
+  return { triageId: executionId, runbookId: '' };
+}
+
+async function dispatchSimulated(
+  incident: Incident,
   opts?: { replay?: boolean },
 ): Promise<{ triageId: string; runbookId: string }> {
-  const incident = getIncident(key);
-  if (!incident) throw new Error(`unknown incident ${key}`);
-
   const triageId = newId('triage');
   const runbookId = newId('runbook');
   const harnessSessionId = `hrs_${Math.random().toString(36).slice(2, 10)}`;
   const model = process.env.INFERENCE_MODEL ?? 'openai-gpt-4.1';
   const script = buildScriptedRun(incident);
   const useLive = !opts?.replay && inferenceConfigured();
+  const mode = opts?.replay ? 'replay' : 'simulated';
 
   const triage: Run = {
     id: triageId,
-    incident: key,
+    incident: incident.key,
     role: 'triage',
     status: 'running',
     startedAt: Date.now(),
     harnessSessionId,
     feed: [],
     model,
+    mode,
   };
   upsertRun(triage);
   incident.runIds = [...incident.runIds, triageId];
-  setIncidentColumn(key, 'investigating');
+  setIncidentColumn(incident.key, 'investigating');
 
   void (async () => {
     try {
@@ -165,23 +319,19 @@ export async function dispatchIncident(
         tokensOut: useLive ? 410 : 360,
         at: Date.now(),
       });
-      upsertRun({
-        ...triage,
-        status: 'completed',
-        endedAt: Date.now(),
-        feed: feedOf(triageId),
-      });
+      updateRun(triageId, { status: 'completed', endedAt: Date.now() });
 
-      setIncidentColumn(key, 'mitigating');
+      setIncidentColumn(incident.key, 'mitigating');
       const runbook: Run = {
         id: runbookId,
-        incident: key,
+        incident: incident.key,
         role: 'runbook',
         status: 'running',
         startedAt: Date.now(),
         harnessSessionId,
         feed: [],
         model,
+        mode,
       };
       upsertRun(runbook);
       incident.runIds = [...incident.runIds, runbookId];
@@ -197,32 +347,49 @@ export async function dispatchIncident(
         tokensOut: outcome.tokensOut,
         at: Date.now(),
       });
-      upsertRun({
-        ...runbook,
+      updateRun(runbookId, {
         status: 'completed',
         endedAt: Date.now(),
-        feed: feedOf(runbookId),
+        tokensIn: outcome.tokensIn,
+        tokensOut: outcome.tokensOut,
       });
 
-      setIncidentOutcome(key, outcome);
-      setIncidentColumn(key, incident.expectsBlockedAction ? 'mitigating' : 'resolved');
+      setIncidentOutcome(incident.key, outcome);
+      setIncidentColumn(incident.key, incident.expectsBlockedAction ? 'mitigating' : 'resolved');
     } catch (e) {
       appendFeed(runbookId, {
         kind: 'log',
         message: e instanceof Error ? e.message : String(e),
         at: Date.now(),
       });
-      upsertRun({
-        id: runbookId,
-        incident: key,
-        role: 'runbook',
+      updateRun(runbookId, {
         status: 'failed',
-        startedAt: Date.now(),
         endedAt: Date.now(),
-        feed: feedOf(runbookId),
+        error: e instanceof Error ? e.message : String(e),
       });
     }
   })();
 
   return { triageId, runbookId };
+}
+
+export async function dispatchIncident(
+  key: string,
+  opts?: { replay?: boolean },
+): Promise<{ triageId: string; runbookId: string; mode: 'mars' | 'simulated' | 'replay' }> {
+  const incident = getIncident(key);
+  if (!incident) throw new Error(`unknown incident ${key}`);
+
+  if (opts?.replay) {
+    const ids = await dispatchSimulated(incident, { replay: true });
+    return { ...ids, mode: 'replay' };
+  }
+
+  if (marsConfigured()) {
+    const ids = await dispatchMars(incident);
+    return { ...ids, mode: 'mars' };
+  }
+
+  const ids = await dispatchSimulated(incident);
+  return { ...ids, mode: 'simulated' };
 }

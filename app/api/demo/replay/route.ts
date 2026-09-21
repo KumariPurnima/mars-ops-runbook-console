@@ -11,7 +11,6 @@ export async function POST() {
   return NextResponse.json({
     ok: true,
     incident: 'INC-104',
-    mode: 'replay',
     ...ids,
   });
 }

@@ -1,27 +1,67 @@
+# App Platform spec for the MARS Ops Runbook console.
+#
+# Deploy with:
+#   doctl apps create --spec .do/app.yaml
+# then set SECRET values in the control panel.
+#
+# NYC is deliberate: MARS sandboxes and Insights metrics are NYC3-oriented today.
 name: mars-ops-runbook-console
 region: nyc
+
 services:
   - name: console
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    http_port: 8080
+
     github:
       repo: KumariPurnima/mars-ops-runbook-console
       branch: main
       deploy_on_push: true
-    source_dir: /
-    http_port: 3000
-    instance_count: 1
-    instance_size_slug: basic-xxs
+
     build_command: npm ci && npm run build
-    run_command: node .next/standalone/server.js
+    run_command: npm start
+
     envs:
-      - key: DO_API_KEY
+      - key: PORT
         scope: RUN_TIME
-        type: SECRET
+        value: "8080"
       - key: INFERENCE_MODEL
         scope: RUN_TIME
-        value: openai-gpt-4.1
+        value: deepseek-v4-pro
       - key: FORCE_REPLAY
         scope: RUN_TIME
         value: "0"
-      - key: NODE_ENV
+
+      - key: DO_API_TOKEN
         scope: RUN_TIME
-        value: production
+        type: SECRET
+        value: REPLACE_ME
+      - key: DO_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_ME
+      - key: AGENT_CALLBACK_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_ME
+
+      - key: MARS_TRIAGE_TRIGGER_ID
+        scope: RUN_TIME
+        value: REPLACE_ME
+      - key: MARS_TRIAGE_TRIGGER_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_ME
+      - key: MARS_RUNBOOK_TRIGGER_ID
+        scope: RUN_TIME
+        value: REPLACE_ME
+      - key: MARS_RUNBOOK_TRIGGER_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_ME
+
+    health_check:
+      http_path: /api/incidents
+      initial_delay_seconds: 20
+      period_seconds: 15

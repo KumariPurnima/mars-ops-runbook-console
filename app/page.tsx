@@ -24,15 +24,21 @@ export default function Page() {
   const [resetting, setResetting] = useState(false);
   const [resetResult, setResetResult] = useState<ResetSummary>();
   const [err, setErr] = useState<string>();
+  const [status, setStatus] = useState<{ mars: boolean; inference: boolean }>({
+    mars: false,
+    inference: false,
+  });
 
   const refresh = useCallback(async () => {
     try {
-      const [i, r] = await Promise.all([
+      const [i, r, s] = await Promise.all([
         fetch('/api/incidents', { cache: 'no-store' }).then((x) => x.json()),
         fetch('/api/runs', { cache: 'no-store' }).then((x) => x.json()),
+        fetch('/api/status', { cache: 'no-store' }).then((x) => x.json()),
       ]);
       setIncidents(i.incidents ?? []);
       setRuns(r.runs ?? []);
+      setStatus({ mars: Boolean(s.mars), inference: Boolean(s.inference) });
       if (!selected && i.incidents?.length) {
         const preferred =
           i.incidents.find((x: Incident) => x.key === 'INC-104') ?? i.incidents[0];
@@ -122,10 +128,24 @@ export default function Page() {
       <div className="p-5 max-w-[1800px] mx-auto">
         <header className="flex flex-wrap items-center gap-4 pb-4">
           <div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-xl font-semibold text-primary">Ops Runbook Agent</h1>
               <span className="mono text-xs px-2 py-0.5 rounded border border-do-blue/40 bg-do-blue/10 text-blue">
                 Incident Copilot
+              </span>
+              <span
+                className={`mono text-xs px-2 py-0.5 rounded border ${
+                  status.mars
+                    ? 'border-green/40 bg-green/10 text-green'
+                    : 'border-amber/40 bg-amber/10 text-amber'
+                }`}
+                title={
+                  status.mars
+                    ? 'MARS triggers configured — dispatch fires Harness Runtime'
+                    : 'MARS not configured — dispatch uses simulated / replay path'
+                }
+              >
+                {status.mars ? 'MARS live' : 'simulated'}
               </span>
             </div>
             <p className="text-sm text-muted pt-0.5 max-w-3xl">
