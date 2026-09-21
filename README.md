@@ -13,6 +13,7 @@ provision, no model servers to run. A human still owns every production change.
 | **Last validated** | 2026-09-21 |
 | **Live demo** | https://mars-ops-runbook-console-xneb7.ondigitalocean.app |
 | **Products shown** | Harness Runtime (MARS), Gradient Serverless Inference, Action Gateway (approvals), App Platform |
+| **Video script** | [`docs/VIDEO_DEMO.md`](docs/VIDEO_DEMO.md) |
 
 ## Executive summary
 
