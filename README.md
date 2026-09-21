@@ -78,8 +78,8 @@ the alternative DigitalOcean is building for customers:
 
 ## Setup
 
-**Prerequisites:** Node 20+. For **live MARS**, a `doctl` beta build with
-`harness-runtime` (same as ticket-to-PR) and Managed Agents enabled on the team.
+**Prerequisites:** Node 20+. For **live MARS**, a `doctl` `1.168.0-beta` build with
+`harness-runtime` and Managed Agents enabled on the team.
 
 ### Console only (simulated / replay — works today)
 
